@@ -5,7 +5,7 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000"],
+    origin: true,
   },
 });
 
@@ -31,24 +31,22 @@ io.on("connection", (socket: any) => {
   // 部屋作成リクエスト
   socket.on("req_createRoom", (data: any) => {
     // 部屋作成処理
-    const room = createRoom(data.userId, data.username); // 適切な部屋作成の処理を実装してください
+    const room = createRoom(data.userId, data.username);
     // クライアントに送信
     // 特定の userId にのみ送信
     rooms.push(room);
     console.log(rooms);
     const res_createRoom = data.userId;
-    socket.emit(res_createRoom, room);
+    io.emit(res_createRoom, room);
   });
 
   // 部屋参加リクエスト
   socket.on("req_joinRoom", (data: any) => {
-    console.log(data);
     // 部屋参加処理
     const room = joinRoom(data.userId, data.username, data.roomId);
     // クライアントに送信
-    // 特定の userId にのみ送信
     const res_joinRoom = data.roomId;
-    socket.emit(res_joinRoom, room);
+    io.emit(res_joinRoom, room);
   });
 
   socket.on("disconnect", () => {
@@ -76,9 +74,7 @@ const createRoom = (userId: string, username: string) => {
 };
 
 const joinRoom = (userId: string, username: string, roomId: string) => {
-  console.log(rooms);
   const room = rooms.find((room) => room.roomId === roomId);
-  console.log(room);
   if (!room) {
     const error = {
       message: "Room not found",
