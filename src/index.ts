@@ -1,3 +1,6 @@
+import { algorithm_problems } from "./algorithm_problems";
+import { shuffleArray } from "./utils/shuffleArray";
+import { generateUUID } from "./utils/generateUUID";
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -11,16 +14,33 @@ const io = new Server(server, {
 
 const PORT = 8000;
 
-interface Room {
+type Room = {
   roomId: string;
   ownerId: string;
   users: {
     userId: string;
     username: string;
   }[];
-}
+};
+
+type Game = {
+  roomId: string;
+  difficulty: string;
+  readingTime: number;
+  codingTime: number;
+  turn: 1;
+  users: {
+    userId: string;
+    username: string;
+    phase: "read" | "code";
+    problem: string;
+    answerCheck: boolean;
+    answer: [];
+  }[];
+};
 
 const rooms: Room[] = [];
+const games: Game[] = [];
 // クライアントから受信するリクエストはreq_
 // クライアントに送信するレスポンスはres_
 
@@ -51,6 +71,20 @@ io.on("connection", (socket: any) => {
 
   socket.on("disconnect", () => {
     console.log("disconnect");
+  });
+
+  // ゲーム開始リクエスト
+  socket.on("req_startGame", (data: any) => {
+    // ゲーム開始処理
+    const game = startGame(
+      data.roomId,
+      data.difficulty,
+      data.readingTime,
+      data.codingTime
+    );
+    // クライアントに送信
+    const res_startGame = data.roomId;
+    io.emit(res_startGame, game);
   });
 });
 
@@ -88,8 +122,38 @@ const joinRoom = (userId: string, username: string, roomId: string) => {
   return room;
 };
 
-const generateUUID = (): string => {
-  // 実際のUUID生成ロジックに置き換えるか、ライブラリを使用する
-  // ここでは単純にランダムな文字列を生成して返す例を示している
-  return Math.random().toString(36).substr(2, 9);
+const startGame = (
+  roomId: string,
+  difficulty: string,
+  readingTime: number,
+  codingTime: number
+) => {
+  const room = rooms.find((room) => room.roomId === roomId);
+  if (!room) {
+    const error = {
+      message: "Room not found",
+    };
+    return error;
+  }
+  const shuffledUsers = shuffleArray(room.users);
+  const shuffled_algorithm_problems = shuffleArray(algorithm_problems);
+  const game: Game = {
+    roomId: roomId,
+    difficulty: difficulty,
+    readingTime: readingTime,
+    codingTime: codingTime,
+    turn: 1,
+    users: shuffledUsers.map((user, index) => {
+      return {
+        userId: user.userId,
+        username: user.username,
+        phase: "code",
+        problem: shuffled_algorithm_problems[index],
+        answerCheck: false,
+        answer: [],
+      };
+    }),
+  };
+
+  return game;
 };
