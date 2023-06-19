@@ -29,13 +29,13 @@ type Game = {
   readingTime: number;
   codingTime: number;
   turn: 1;
+  phase: "read" | "code" | "end";
   users: {
     userId: string;
     username: string;
-    phase: "read" | "code";
     problem: string;
     answerCheck: boolean;
-    answer: [];
+    answers: string[];
   }[];
 };
 
@@ -85,6 +85,15 @@ io.on("connection", (socket: any) => {
     // クライアントに送信
     const res_startGame = data.roomId;
     io.emit(res_startGame, game);
+  });
+
+  // 回答リクエスト
+  socket.on("req_answer", (data: any) => {
+    // 回答処理
+    const game = answerGame(data.roomId, data.userId, data.answer);
+    // クライアントに送信
+    const res_answer = data.roomId;
+    io.emit(res_answer, game);
   });
 });
 
@@ -137,23 +146,67 @@ const startGame = (
   }
   const shuffledUsers = shuffleArray(room.users);
   const shuffled_algorithm_problems = shuffleArray(algorithm_problems);
+  // usersの数だけ空のanswer配列を作成
+  const answers: string[] = Array.from(
+    { length: shuffledUsers.length },
+    () => ""
+  );
+
   const game: Game = {
     roomId: roomId,
     difficulty: difficulty,
     readingTime: readingTime,
     codingTime: codingTime,
     turn: 1,
+    phase: "code",
     users: shuffledUsers.map((user, index) => {
       return {
         userId: user.userId,
         username: user.username,
-        phase: "code",
         problem: shuffled_algorithm_problems[index],
         answerCheck: false,
-        answer: [],
+        answers: answers,
       };
     }),
   };
+  return game;
+};
 
+const answerGame = (roomId: string, userId: string, answer: string) => {
+  const game = games.find((game) => game.roomId === roomId);
+  if (!game) {
+    const error = {
+      message: "Game not found",
+    };
+    return error;
+  }
+  const user = game.users.find((user) => user.userId === userId);
+  if (!user) {
+    const error = {
+      message: "User not found",
+    };
+    return error;
+  }
+  user.answerCheck = true;
+  user.answers[game.turn - 1] = answer;
+  // 全員が回答した処理
+  if (game.users.every((user) => user.answerCheck)) {
+    // turnを+1して、answerCheckをfalseにして、phaseをread or codeにする
+    game.turn += 1;
+    game.users.forEach((user) => {
+      user.answerCheck = false;
+    });
+    if (game.phase === "read") {
+      game.phase = "code";
+    } else {
+      game.phase = "read";
+    }
+    // 最後のターンの処理
+    if (game.turn > game.users.length) {
+      // phaseをendにする
+      game.phase = "end";
+    }
+    return game;
+  }
   return game;
 };
