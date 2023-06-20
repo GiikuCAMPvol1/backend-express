@@ -13,6 +13,7 @@ const io = new Server(server, {
 });
 
 const PORT = 8000;
+const capacity = 5;
 
 type Room = {
   roomId: string;
@@ -65,11 +66,19 @@ io.on("connection", (socket: any) => {
 
   // 部屋参加リクエスト
   socket.on("req_joinRoom", (data: any) => {
-    // 部屋参加処理
-    const room = joinRoom(data.userId, data.username, data.roomId);
-    // クライアントに送信
-    const res_joinRoom = data.roomId;
-    io.emit(res_joinRoom, room);
+    // 参加上限を5人としてそれ以上の時は入れないようにする
+    if (data.users.length >= capacity) {
+      const error = {
+        message: "Room is full",
+      };
+      return error;
+    } else {
+      // 部屋参加処理
+      const room = joinRoom(data.userId, data.username, data.roomId);
+      // クライアントに送信
+      const res_joinRoom = data.roomId;
+      io.emit(res_joinRoom, room);
+    }
   });
 
   socket.on("disconnect", () => {
