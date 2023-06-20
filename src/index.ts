@@ -36,6 +36,7 @@ type Game = {
     problem: string;
     answerCheck: boolean;
     answers: string[];
+    languages: string[];
   }[];
 };
 
@@ -90,7 +91,12 @@ io.on("connection", (socket: any) => {
   // 回答リクエスト
   socket.on("req_answer", (data: any) => {
     // 回答処理
-    const game = answerGame(data.roomId, data.userId, data.answer);
+    const game = answerGame(
+      data.roomId,
+      data.userId,
+      data.answer,
+      data.language
+    );
     // クライアントに送信
     const res_answer = data.roomId;
     io.emit(res_answer, game);
@@ -146,11 +152,6 @@ const startGame = (
   }
   const shuffledUsers = shuffleArray(room.users);
   const shuffled_algorithm_problems = shuffleArray(algorithm_problems);
-  // usersの数だけ空のanswer配列を作成
-  const answers: string[] = Array.from(
-    { length: shuffledUsers.length },
-    () => ""
-  );
 
   const game: Game = {
     roomId: roomId,
@@ -165,14 +166,20 @@ const startGame = (
         username: user.username,
         problem: shuffled_algorithm_problems[index],
         answerCheck: false,
-        answers: answers,
+        answers: [],
+        languages: [],
       };
     }),
   };
   return game;
 };
 
-const answerGame = (roomId: string, userId: string, answer: string) => {
+const answerGame = (
+  roomId: string,
+  userId: string,
+  answer: string,
+  language: string
+) => {
   const game = games.find((game) => game.roomId === roomId);
   if (!game) {
     const error = {
@@ -189,6 +196,7 @@ const answerGame = (roomId: string, userId: string, answer: string) => {
   }
   user.answerCheck = true;
   user.answers[game.turn - 1] = answer;
+  user.languages[game.turn - 1] = language;
   // 全員が回答した処理
   if (game.users.every((user) => user.answerCheck)) {
     // turnを+1して、answerCheckをfalseにして、phaseをread or codeにする
