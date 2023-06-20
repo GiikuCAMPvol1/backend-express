@@ -101,6 +101,9 @@ io.on("connection", (socket: any) => {
       data.readingTime,
       data.codingTime
     );
+    if (typeof game === "object" && !("message" in game)) {
+      games.push(game);
+    }
     // クライアントに送信
     const res_startGame = `res_gameStart_${data.roomId}`;
     io.emit(res_startGame, game);
@@ -115,8 +118,13 @@ io.on("connection", (socket: any) => {
       data.answerCode,
       data.language
     );
+    // roomIdが一致するgamesの中のgameを更新
+    if (typeof game === "object" && !("message" in game)) {
+      const index = games.findIndex((game) => game.roomId === data.roomId);
+      games[index] = game;
+    }
     // クライアントに送信
-    const res_answer = data.roomId;
+    const res_answer = `res_answer_${data.roomId}`;
     io.emit(res_answer, game);
   });
 });
