@@ -67,7 +67,14 @@ io.on("connection", (socket: any) => {
   // 部屋参加リクエスト
   socket.on("req_joinRoom", (data: any) => {
     // 参加上限を5人としてそれ以上の時は入れないようにする
-    if (data.users.length >= capacity) {
+    const room = rooms.find((room) => room.roomId === data.roomId);
+    if (!room) {
+      const error = {
+        message: "Room not found",
+      };
+      return error;
+    }
+    if (room.users.length >= capacity) {
       const error = {
         message: "Room is full",
       };
@@ -95,7 +102,7 @@ io.on("connection", (socket: any) => {
       data.codingTime
     );
     // クライアントに送信
-    const res_startGame = data.roomId;
+    const res_startGame = `res_gameStart_${data.roomId}`;
     io.emit(res_startGame, game);
   });
 
