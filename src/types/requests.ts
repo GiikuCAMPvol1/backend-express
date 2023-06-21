@@ -16,17 +16,21 @@ export type ReqStartGame = {
   codingTime: number;
 };
 
-export type ReqAnswer =
-  | {
-      type: "read";
-      roomId: string;
-      userId: string;
-      readAnswer: string;
-    }
-  | {
-      type: "code";
-      roomId: string;
-      userId: string;
-      codeAnswer: string;
-      language: string;
-    };
+export type ReqAnswer = (ReqAnswerRead | ReqAnswerCode) & {
+  roomId: string;
+};
+
+export type ReqAnswerRead = {
+  type: "read";
+  userId: string;
+  readAnswer: string;
+  problemId: number;
+};
+
+export type ReqAnswerCode = {
+  type: "code";
+  userId: string;
+  codeAnswer: string;
+  language: string;
+  problemId: number;
+};

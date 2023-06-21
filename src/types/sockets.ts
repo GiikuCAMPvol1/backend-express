@@ -1,3 +1,5 @@
+import { ReqAnswerRead, ReqAnswerCode } from "./requests";
+
 export type Room = {
   roomId: string;
   ownerId: string;
@@ -17,23 +19,12 @@ export type Game = {
   users: {
     userId: string;
     username: string;
+    problemId: number;
     isAnswered: boolean;
   }[];
   problems: {
-    problemId: string;
+    problemId: number;
     problem: string;
-    answers: (
-      | {
-          type: "read";
-          userId: string;
-          answerRead: string;
-        }
-      | {
-          type: "code";
-          userId: string;
-          answerCode: string;
-          language: string;
-        }
-    )[];
+    answers: (ReqAnswerRead | ReqAnswerCode)[];
   }[];
 };
