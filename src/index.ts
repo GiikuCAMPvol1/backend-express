@@ -175,7 +175,12 @@ const startGame = (
       return {
         problemId: index,
         problem: shuffled_algorithm_problems[index],
-        answers: [],
+        answers: [{
+          type: "read",
+          userId: "-1",
+          readAnswer: shuffled_algorithm_problems[index],
+          problemId: index,
+        }],
       };
     }),
   };
