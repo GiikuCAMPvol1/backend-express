@@ -1,6 +1,14 @@
 import { algorithm_problems } from "./algorithm_problems";
 import { shuffleArray } from "./utils/shuffleArray";
 import { generateUUID } from "./utils/generateUUID";
+import {
+  ReqAnswer,
+  ReqCreateRoom,
+  ReqJoinRoom,
+  ReqStartGame,
+} from "./types/requests";
+import { Socket } from "socket.io";
+import { Game, Room } from "./types/sockets";
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -15,45 +23,17 @@ const io = new Server(server, {
 const PORT = 8000;
 const capacity = 5;
 
-type Room = {
-  roomId: string;
-  ownerId: string;
-  users: {
-    userId: string;
-    username: string;
-  }[];
-};
-
-type Game = {
-  roomId: string;
-  difficulty: string;
-  readingTime: number;
-  codingTime: number;
-  turn: 1;
-  phase: "read" | "code" | "end";
-  users: {
-    userId: string;
-    username: string;
-    problem: string;
-    answerCheck: boolean;
-    answers: {
-      answerCode: string;
-      language: string;
-    }[];
-  }[];
-};
-
 const rooms: Room[] = [];
 const games: Game[] = [];
 // クライアントから受信するリクエストはreq_
 // クライアントに送信するレスポンスはres_
 
 // クライアントと通信
-io.on("connection", (socket: any) => {
+io.on("connection", (socket: Socket) => {
   console.log("connect start");
 
   // 部屋作成リクエスト
-  socket.on("req_createRoom", (data: any) => {
+  socket.on("req_createRoom", (data: ReqCreateRoom) => {
     // 部屋作成処理
     const room = createRoom(data.userId, data.username);
     // クライアントに送信
@@ -65,7 +45,7 @@ io.on("connection", (socket: any) => {
   });
 
   // 部屋参加リクエスト
-  socket.on("req_joinRoom", (data: any) => {
+  socket.on("req_joinRoom", (data: ReqJoinRoom) => {
     // 参加上限を5人としてそれ以上の時は入れないようにする
     const room = rooms.find((room) => room.roomId === data.roomId);
     if (!room) {
@@ -93,7 +73,7 @@ io.on("connection", (socket: any) => {
   });
 
   // ゲーム開始リクエスト
-  socket.on("req_startGame", (data: any) => {
+  socket.on("req_startGame", (data: ReqStartGame) => {
     // ゲーム開始処理
     const game = startGame(
       data.roomId,
@@ -110,23 +90,23 @@ io.on("connection", (socket: any) => {
   });
 
   // 回答リクエスト
-  socket.on("req_answer", (data: any) => {
-    // 回答処理
-    const game = answerGame(
-      data.roomId,
-      data.userId,
-      data.answerCode,
-      data.language
-    );
-    // roomIdが一致するgamesの中のgameを更新
-    if (typeof game === "object" && !("message" in game)) {
-      const index = games.findIndex((game) => game.roomId === data.roomId);
-      games[index] = game;
-    }
-    // クライアントに送信
-    const res_answer = `res_answer_${data.roomId}`;
-    io.emit(res_answer, game);
-  });
+  //   socket.on("req_answer", (data: ReqAnswer) => {
+  //     // 回答処理
+  //     const game = answerGame(
+  //       data.roomId,
+  //       data.userId,
+  //       data.answerCode,
+  //       data.language
+  //     );
+  //     // roomIdが一致するgamesの中のgameを更新
+  //     if (typeof game === "object" && !("message" in game)) {
+  //       const index = games.findIndex((game) => game.roomId === data.roomId);
+  //       games[index] = game;
+  //     }
+  //     // クライアントに送信
+  //     const res_answer = `res_answer_${data.roomId}`;
+  //     io.emit(res_answer, game);
+  //   });
 });
 
 server.listen(PORT, () => {
@@ -186,65 +166,65 @@ const startGame = (
     codingTime: codingTime,
     turn: 1,
     phase: "code",
-    users: shuffledUsers.map((user, index) => {
+    users: shuffledUsers.map((user) => {
       return {
         userId: user.userId,
         username: user.username,
+        isAnswered: false,
+      };
+    }),
+    problems: shuffledUsers.map((user, index) => {
+      return {
+        problemId: index.toString(),
         problem: shuffled_algorithm_problems[index],
-        answerCheck: false,
-        answers: [
-          {
-            answerCode: "",
-            language: "",
-          },
-        ],
+        answers: [],
       };
     }),
   };
   return game;
 };
 
-const answerGame = (
-  roomId: string,
-  userId: string,
-  answerCode: string,
-  language: string
-) => {
-  const game = games.find((game) => game.roomId === roomId);
-  if (!game) {
-    const error = {
-      message: "Game not found",
-    };
-    return error;
-  }
-  const user = game.users.find((user) => user.userId === userId);
-  if (!user) {
-    const error = {
-      message: "User not found",
-    };
-    return error;
-  }
-  user.answerCheck = true;
-  user.answers[game.turn - 1].answerCode = answerCode;
-  user.answers[game.turn - 1].language = language;
-  // 全員が回答した処理
-  if (game.users.every((user) => user.answerCheck)) {
-    // turnを+1して、answerCheckをfalseにして、phaseをread or codeにする
-    game.turn += 1;
-    game.users.forEach((user) => {
-      user.answerCheck = false;
-    });
-    if (game.phase === "read") {
-      game.phase = "code";
-    } else {
-      game.phase = "read";
-    }
-    // 最後のターンの処理
-    if (game.turn > game.users.length) {
-      // phaseをendにする
-      game.phase = "end";
-    }
-    return game;
-  }
-  return game;
-};
+// const answerGame = (
+//   roomId: string,
+//   userId: string,
+//   answerCode: string,
+//   language: string
+// ) => {
+//   const game = games.find((game) => game.roomId === roomId);
+//   if (!game) {
+//     const error = {
+//       message: "Game not found",
+//     };
+//     return error;
+//   }
+//   const user = game.users.find((user) => user.userId === userId);
+//   if (!user) {
+//     const error = {
+//       message: "User not found",
+//     };
+//     return error;
+//   }
+//   user.answerCheck = true;
+//   user.answers[game.turn - 1].answerCode = answerCode;
+//   user.answers[game.turn - 1].language = language;
+//   // 全員が回答した処理
+//   if (game.users.every((user) => user.answerCheck)) {
+//     // turnを+1して、answerCheckをfalseにして、phaseをread or codeにする
+//     game.turn += 1;
+//     game.users.forEach((user) => {
+//       user.answerCheck = false;
+//     });
+//     if (game.phase === "read") {
+//       game.phase = "code";
+//     } else {
+//       game.phase = "read";
+//     }
+//     // 最後のターンの処理
+//     if (game.turn > game.users.length) {
+//       // phaseをendにする
+//       game.phase = "end";
+//     }
+//     return game;
+//   }
+//   return game;
+// };
