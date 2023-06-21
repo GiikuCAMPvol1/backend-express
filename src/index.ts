@@ -1,6 +1,16 @@
 import { algorithm_problems } from "./algorithm_problems";
 import { shuffleArray } from "./utils/shuffleArray";
 import { generateUUID } from "./utils/generateUUID";
+import {
+  ReqAnswer,
+  ReqAnswerCode,
+  ReqAnswerRead,
+  ReqCreateRoom,
+  ReqJoinRoom,
+  ReqStartGame,
+} from "./types/requests";
+import { Socket } from "socket.io";
+import { Game, Room } from "./types/sockets";
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -15,45 +25,17 @@ const io = new Server(server, {
 const PORT = 8000;
 const capacity = 5;
 
-type Room = {
-  roomId: string;
-  ownerId: string;
-  users: {
-    userId: string;
-    username: string;
-  }[];
-};
-
-type Game = {
-  roomId: string;
-  difficulty: string;
-  readingTime: number;
-  codingTime: number;
-  turn: 1;
-  phase: "read" | "code" | "end";
-  users: {
-    userId: string;
-    username: string;
-    problem: string;
-    answerCheck: boolean;
-    answers: {
-      answerCode: string;
-      language: string;
-    }[];
-  }[];
-};
-
 const rooms: Room[] = [];
 const games: Game[] = [];
 // クライアントから受信するリクエストはreq_
 // クライアントに送信するレスポンスはres_
 
 // クライアントと通信
-io.on("connection", (socket: any) => {
+io.on("connection", (socket: Socket) => {
   console.log("connect start");
 
   // 部屋作成リクエスト
-  socket.on("req_createRoom", (data: any) => {
+  socket.on("req_createRoom", (data: ReqCreateRoom) => {
     // 部屋作成処理
     const room = createRoom(data.userId, data.username);
     // クライアントに送信
@@ -65,7 +47,7 @@ io.on("connection", (socket: any) => {
   });
 
   // 部屋参加リクエスト
-  socket.on("req_joinRoom", (data: any) => {
+  socket.on("req_joinRoom", (data: ReqJoinRoom) => {
     // 参加上限を5人としてそれ以上の時は入れないようにする
     const room = rooms.find((room) => room.roomId === data.roomId);
     if (!room) {
@@ -93,7 +75,7 @@ io.on("connection", (socket: any) => {
   });
 
   // ゲーム開始リクエスト
-  socket.on("req_startGame", (data: any) => {
+  socket.on("req_startGame", (data: ReqStartGame) => {
     // ゲーム開始処理
     const game = startGame(
       data.roomId,
@@ -110,14 +92,9 @@ io.on("connection", (socket: any) => {
   });
 
   // 回答リクエスト
-  socket.on("req_answer", (data: any) => {
+  socket.on("req_answer", (data: ReqAnswer) => {
     // 回答処理
-    const game = answerGame(
-      data.roomId,
-      data.userId,
-      data.answerCode,
-      data.language
-    );
+    const game = answerGame(data);
     // roomIdが一致するgamesの中のgameを更新
     if (typeof game === "object" && !("message" in game)) {
       const index = games.findIndex((game) => game.roomId === data.roomId);
@@ -190,26 +167,23 @@ const startGame = (
       return {
         userId: user.userId,
         username: user.username,
+        problemId: index,
+        isAnswered: false,
+      };
+    }),
+    problems: shuffledUsers.map((user, index) => {
+      return {
+        problemId: index,
         problem: shuffled_algorithm_problems[index],
-        answerCheck: false,
-        answers: [
-          {
-            answerCode: "",
-            language: "",
-          },
-        ],
+        answers: [],
       };
     }),
   };
   return game;
 };
 
-const answerGame = (
-  roomId: string,
-  userId: string,
-  answerCode: string,
-  language: string
-) => {
+const answerGame = (data: ReqAnswer) => {
+  const roomId = data.roomId;
   const game = games.find((game) => game.roomId === roomId);
   if (!game) {
     const error = {
@@ -217,6 +191,7 @@ const answerGame = (
     };
     return error;
   }
+  const userId = data.userId;
   const user = game.users.find((user) => user.userId === userId);
   if (!user) {
     const error = {
@@ -224,27 +199,42 @@ const answerGame = (
     };
     return error;
   }
-  user.answerCheck = true;
-  user.answers[game.turn - 1].answerCode = answerCode;
-  user.answers[game.turn - 1].language = language;
-  // 全員が回答した処理
-  if (game.users.every((user) => user.answerCheck)) {
-    // turnを+1して、answerCheckをfalseにして、phaseをread or codeにする
-    game.turn += 1;
-    game.users.forEach((user) => {
-      user.answerCheck = false;
-    });
-    if (game.phase === "read") {
-      game.phase = "code";
-    } else {
-      game.phase = "read";
-    }
-    // 最後のターンの処理
-    if (game.turn > game.users.length) {
-      // phaseをendにする
-      game.phase = "end";
-    }
+  user.isAnswered = true;
+  // problemsの中のproblemIdとdata.problemIdが一致するもののindexを取得
+  const problem = game.problems.find(
+    (problem) => problem.problemId === data.problemId
+  );
+  if (!problem) return;
+  if (data.type === "code") {
+    const answer = {
+      type: "code",
+      userId: userId,
+      codeAnswer: data.codeAnswer,
+      language: data.language,
+    } as ReqAnswerCode;
+    problem.answers.push(answer);
+  } else if (data.type === "read") {
+    const answer = {
+      type: data.type,
+      userId: userId,
+      readAnswer: data.readAnswer,
+    } as ReqAnswerRead;
+    problem.answers.push(answer);
+  }
+
+  if (game.users.find((user) => user.isAnswered === false) !== undefined) {
+    //まだ全員が回答しきっていない場合
     return game;
   }
+  for (const user of game.users) {
+    user.isAnswered = false;
+    user.problemId = (user.problemId + 1) % game.users.length;
+  }
+  game.turn++;
+  if (game.turn > game.users.length) {
+    game.phase = "end";
+    return game;
+  }
+  game.phase = game.phase === "read" ? "code" : "read";
   return game;
 };
