@@ -8,6 +8,7 @@ import {
   ReqCreateRoom,
   ReqJoinRoom,
   ReqStartGame,
+  ReqUpdateResult,
 } from "./types/requests";
 import { Socket } from "socket.io";
 import { Game, Room } from "./types/sockets";
@@ -104,6 +105,23 @@ io.on("connection", (socket: Socket) => {
     // クライアントに送信
     const res_answer = `res_answer_${data.roomId}`;
     io.emit(res_answer, game);
+  });
+
+  // 結果画面更新リクエスト
+  socket.on("req_updateResult", (data: ReqUpdateResult) => {
+    // 結果画面更新処理
+    const game = updateResult(data);
+    // roomIdが一致するgamesの中のgameを更新
+    if (typeof game === "object" && !("message" in game)) {
+      const index = games.findIndex((game) => game.roomId === data.roomId);
+      games[index] = game;
+      // ターン数がユーザー数以下の時のみ結果画面を更新する
+      if (game.turn <= game.users.length) {
+        // クライアントに送信
+        const res_updateResult = `res_updateResult_${data.roomId}`;
+        io.emit(res_updateResult, game);
+      }
+    }
   });
 });
 
@@ -210,7 +228,6 @@ const answerGame = (data: ReqAnswer) => {
     return error;
   }
   user.isAnswered = true;
-  // problemsの中のproblemIdとdata.problemIdが一致するもののindexを取得
   const problem = game.problems.find(
     (problem) => problem.problemId === data.problemId
   );
@@ -243,8 +260,22 @@ const answerGame = (data: ReqAnswer) => {
   game.turn++;
   if (game.turn > game.users.length) {
     game.phase = "end";
+    game.turn = 1;
     return game;
   }
   game.phase = game.phase === "read" ? "code" : "read";
+  return game;
+};
+
+const updateResult = (data: ReqUpdateResult) => {
+  const roomId = data.roomId;
+  const game = games.find((game) => game.roomId === roomId);
+  if (!game) {
+    const error = {
+      message: "Game not found",
+    };
+    return error;
+  }
+  game.turn++;
   return game;
 };
