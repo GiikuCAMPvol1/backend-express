@@ -11,6 +11,7 @@ import {
 } from "./types/requests";
 import { Socket } from "socket.io";
 import { Game, Room } from "./types/sockets";
+import { getProblemsByDifficulty } from "./utils/getProblemsByDifficulty";
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -142,7 +143,7 @@ const joinRoom = (userId: string, username: string, roomId: string) => {
 
 const startGame = (
   roomId: string,
-  difficulty: string,
+  difficulty: "easy" | "normal" | "hard",
   readingTime: number,
   codingTime: number
 ) => {
@@ -154,7 +155,9 @@ const startGame = (
     return error;
   }
   const shuffledUsers = shuffleArray(room.users);
-  const shuffled_algorithm_problems = shuffleArray(algorithm_problems);
+
+  const problems = getProblemsByDifficulty(algorithm_problems, difficulty);
+  const shuffled_algorithm_problems = shuffleArray(problems);
 
   const game: Game = {
     roomId: roomId,
@@ -175,12 +178,14 @@ const startGame = (
       return {
         problemId: index,
         problem: shuffled_algorithm_problems[index],
-        answers: [{
-          type: "read",
-          userId: "-1",
-          readAnswer: shuffled_algorithm_problems[index],
-          problemId: index,
-        }],
+        answers: [
+          {
+            type: "read",
+            userId: "-1",
+            readAnswer: shuffled_algorithm_problems[index],
+            problemId: index,
+          },
+        ],
       };
     }),
   };
