@@ -143,7 +143,7 @@ const joinRoom = (userId: string, username: string, roomId: string) => {
 
 const startGame = (
   roomId: string,
-  difficulty: "easy" | "normal" | "hard",
+  difficulty: string,
   readingTime: number,
   codingTime: number
 ) => {

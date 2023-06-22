@@ -11,7 +11,7 @@ export type ReqJoinRoom = {
 
 export type ReqStartGame = {
   roomId: string;
-  difficulty: "easy" | "normal" | "hard";
+  difficulty: string;
   readingTime: number;
   codingTime: number;
 };

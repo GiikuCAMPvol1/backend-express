@@ -2,7 +2,15 @@ import { AlgorithmProblems } from "../types/algorithmProblems";
 
 export const getProblemsByDifficulty = (
   algorithm_problems: AlgorithmProblems,
-  difficulty: "easy" | "normal" | "hard"
+  difficulty: string
 ): string[] => {
-  return algorithm_problems[difficulty];
+  if (
+    difficulty === "easy" ||
+    difficulty === "normal" ||
+    difficulty === "hard"
+  ) {
+    return algorithm_problems[difficulty];
+  } else {
+    return [];
+  }
 };
