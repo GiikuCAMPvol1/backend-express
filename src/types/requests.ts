@@ -34,3 +34,8 @@ export type ReqAnswerCode = {
   language: string;
   problemId: number;
 };
+
+export type ReqUpdateResult = {
+  roomId: string;
+  turn: number;
+};
