@@ -43,3 +43,7 @@ export type ReqUpdateResult = {
 export type ReqRestart = {
   roomId: string;
 };
+
+export type ReqHomeReset = {
+  roomId: string;
+};
