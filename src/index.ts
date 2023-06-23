@@ -6,6 +6,7 @@ import {
   ReqAnswerCode,
   ReqAnswerRead,
   ReqCreateRoom,
+  ReqHomeReset,
   ReqJoinRoom,
   ReqRestart,
   ReqStartGame,
@@ -130,6 +131,19 @@ io.on("connection", (socket: Socket) => {
     // 再スタート処理(roomIdが一致するgamesの中のgameを削除)
     const index = games.findIndex((game) => game.roomId === data.roomId);
     games.splice(index, 1);
+    // クライアントに送信
+    const res_restart = `res_restart_${data.roomId}`;
+    io.emit(res_restart, data.roomId);
+  });
+
+  // ホームに戻る
+  socket.on("req_homeReset", (data: ReqHomeReset) => {
+    // ホームに戻る処理(roomIdが一致するgamesの中のgameを削除)
+    const index = games.findIndex((game) => game.roomId === data.roomId);
+    games.splice(index, 1);
+    // クライアントに送信
+    const res_homeReset = `res_homeReset_${data.roomId}`;
+    io.emit(res_homeReset, data.roomId);
   });
 });
 
