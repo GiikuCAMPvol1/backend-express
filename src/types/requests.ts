@@ -39,3 +39,7 @@ export type ReqUpdateResult = {
   roomId: string;
   turn: number;
 };
+
+export type ReqRestart = {
+  roomId: string;
+};

@@ -7,6 +7,7 @@ import {
   ReqAnswerRead,
   ReqCreateRoom,
   ReqJoinRoom,
+  ReqRestart,
   ReqStartGame,
   ReqUpdateResult,
 } from "./types/requests";
@@ -122,6 +123,13 @@ io.on("connection", (socket: Socket) => {
         io.emit(res_updateResult, game);
       }
     }
+  });
+
+  // 再スタート
+  socket.on("req_restart", (data: ReqRestart) => {
+    // 再スタート処理(roomIdが一致するgamesの中のgameを削除)
+    const index = games.findIndex((game) => game.roomId === data.roomId);
+    games.splice(index, 1);
   });
 });
 
